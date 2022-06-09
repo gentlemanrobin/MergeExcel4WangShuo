@@ -39,7 +39,7 @@ def get_sheet_name(sheetName):
         sheetName = get_sheet_previous_name(sheetName) + "_CPHT"
     elif 'CPR' in d2Name:
         sheetName = get_sheet_previous_name(sheetName) + "_CPRT"
-    print("sheetName=="+sheetName)
+    print("sheetName==" + sheetName)
     return sheetName
 
 
@@ -47,10 +47,10 @@ if __name__ == '__main__':
     desktopPath = os.path.join(os.path.expanduser('~'), "Desktop")
     inputFilePath = desktopPath + r'\MERGE'
     outputFilePath = desktopPath + r'\AE7252#05-COMP1.xlsx'
-    if os.path.exists(r'%s' % outputFilePath):
-        os.remove(r'%s' % outputFilePath)
-    # 创建一个目标文件（说实话我也不是很清楚为什么这么写）
-    result = pd.ExcelWriter(r'%s' % outputFilePath)
+    # if os.path.exists(r'%s' % outputFilePath):
+    #     os.remove(r'%s' % outputFilePath)
+    # 创建一个目标文件,如果直接用文件路径，那么每次都会覆盖写入，ExcelWriter可以看作一个容器，一次性提交所有to_excel语句后再保存，从而避免覆盖写入。
+    result = pd.ExcelWriter(r'%s' % outputFilePath, mode='a', if_sheet_exists='overlay')
     origin_file_list = os.listdir(r'%s' % inputFilePath)
     # 定义4个临时存储文件内容变量,如果后期文件多，要考虑用冒泡排序，而不是手动to_excel
     contentCPRT = ""
@@ -58,6 +58,7 @@ if __name__ == '__main__':
     excelSheetNameCPRT = ""
     excelSheetNameCPHT = ""
 
+    # 循环初始文件，写入目标xlsx文件
     for i in origin_file_list:
         file_path = r'%s' % inputFilePath + "\\" + i
         content = pd.read_excel(file_path, header=None)
@@ -76,8 +77,37 @@ if __name__ == '__main__':
     contentCPRT.to_excel(result, excelSheetNameCPRT, index=False, header=None)
     contentCPHT.to_excel(result, excelSheetNameCPHT, index=False, header=None)
     df = pd.DataFrame()
-    df.to_excel(result, get_sheet_previous_name(origin_file_list[0])+"_COMP")
+    df.to_excel(result, get_sheet_previous_name(origin_file_list[0]) + "_COMP")
     df.to_excel(result, "RT_fail")
     df.to_excel(result, "HT_fail")
     df.to_excel(result, "良品数量")
+    # 保存上面的操作，因为下面要读取最新的表格
     result.save()
+    # 操作第三张表
+    # 1. 把RT HT复制到sheet3中，跳过1-7行和第13行空行。
+    content1 = pd.read_excel(outputFilePath, sheet_name=excelSheetNameCPRT, skiprows=[0, 1, 2, 3, 4, 5, 6, 12],
+                             header=None)
+    content2 = pd.read_excel(outputFilePath, sheet_name=excelSheetNameCPHT, skiprows=[0, 1, 2, 3, 4, 5, 6, 12],
+                             header=None)
+    targetList1 = list(content1.loc[1])
+    targetList2 = list(content2.loc[1])
+    # 2. 循环删除包含VD_G2的列
+    for num, i in enumerate(targetList1):
+        if not (pd.isna(i)) and "VD_G2" in i:
+            print("删除第一张表的列是:" + i + ",序号是:" + str(num))
+            print()
+            # inplace 会改变当前的dataframe,类似于给他重新赋值，并且返回none
+            content1.drop(columns=num, inplace=True)
+    for num, i in enumerate(targetList2):
+        if not (pd.isna(i)) and "VD_G2" in i:
+            print("删除第二张表的列是:" + i + ",序号是:" + str(num))
+            # inplace 会改变当前的dataframe,类似于给他重新赋值，并且返回none
+            content2.drop(columns=num, inplace=True)
+    content1.to_excel(result, sheet_name="RE0505#02_COMP", index=False, header=None)
+    content2.to_excel(result, sheet_name="RE0505#02_COMP", index=False, header=None, startcol=content1.shape[1],
+                      startrow=0)
+    print(content1)
+    print(content2)
+    result.save()
+    print("写入成功")
+# 目前的问题：需要用书手动创建电子表格，并且要手动删除sheet列，而且还要另存为表格。
