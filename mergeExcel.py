@@ -2,9 +2,9 @@ import pandas as pd
 import os
 
 
-# 打包命令：因为会用到'C:\WINDOWS\system32\api-ms-win-crt-locale-l1-1-0.dll文件，所以需要进到C:\WINDOWS\system32目录打包
-# pyinstaller -F -w C:\Users\RobinGao\Desktop\Code\python\first\mergeExcel.py
-# pyinstaller -F C:\Users\RobinGao\Desktop\Code\python\first\mergeExcel.py --distpath=C:\Users\RobinGao\Desktop\Code\python\first\dist
+# 打包方法：
+# 以管理员身份运行CMD
+# pyinstaller -F C:\Users\RobinGao\Desktop\Code\python\MergeExcel4WangShuo\mergeExcel.py --distpath=C:\Users\RobinGao\Desktop\Code\python\MergeExcel4WangShuo\dist
 def get_sheet_previous_name(sheetName):
     """
     拼接sheet_previous_name的名字
@@ -47,10 +47,11 @@ if __name__ == '__main__':
     desktopPath = os.path.join(os.path.expanduser('~'), "Desktop")
     inputFilePath = desktopPath + r'\MERGE'
     outputFilePath = desktopPath + r'\AE7252#05-COMP1.xlsx'
-    # if os.path.exists(r'%s' % outputFilePath):
-    #     os.remove(r'%s' % outputFilePath)
-    # 创建一个目标文件,如果直接用文件路径，那么每次都会覆盖写入，ExcelWriter可以看作一个容器，一次性提交所有to_excel语句后再保存，从而避免覆盖写入。
-    result = pd.ExcelWriter(r'%s' % outputFilePath, mode='a', if_sheet_exists='overlay')
+    if os.path.exists(r'%s' % outputFilePath):
+        os.remove(r'%s' % outputFilePath)
+    # 创建一个目标文件,如果直接用文件路径，那么每次都会覆盖写入，ExcelWriter可以看作一个容器，一次性提交所有to_excel语句后再保存，
+    # 从而避免覆盖写入。其实这一句代码只是创建一个新的XLSX文件。
+    result = pd.ExcelWriter(r'%s' % outputFilePath)
     origin_file_list = os.listdir(r'%s' % inputFilePath)
     # 定义4个临时存储文件内容变量,如果后期文件多，要考虑用冒泡排序，而不是手动to_excel
     contentCPRT = ""
@@ -83,6 +84,8 @@ if __name__ == '__main__':
     df.to_excel(result, "良品数量")
     # 保存上面的操作，因为下面要读取最新的表格
     result.save()
+    # 重新读取，当前的ExcelWriter支持覆盖写入
+    result = pd.ExcelWriter(r'%s' % outputFilePath, mode='a', if_sheet_exists='overlay')
     # 操作第三张表
     # 1. 把RT HT复制到sheet3中，跳过1-7行和第13行空行。
     content1 = pd.read_excel(outputFilePath, sheet_name=excelSheetNameCPRT, skiprows=[0, 1, 2, 3, 4, 5, 6, 12],
@@ -110,4 +113,3 @@ if __name__ == '__main__':
     print(content2)
     result.save()
     print("写入成功")
-# 目前的问题：需要用书手动创建电子表格，并且要手动删除sheet列，而且还要另存为表格。
